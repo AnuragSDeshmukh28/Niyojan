@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+uploads/*
+!.gitignore
+.pytest_cache/
+.coverage
+htmlcov/
+*.sqlite3
+alembic.ini
