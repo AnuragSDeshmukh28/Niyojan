@@ -26,6 +26,10 @@ class DocumentRead(BaseModel):
     principalNote: Optional[str] = None
     digitalStampVerified: bool = False
     approvalReferenceNo: Optional[str] = None
+    sha256_hash: Optional[str] = None
+    blockchain_tx_hash: Optional[str] = None
+    blockchain_status: Optional[str] = "unanchored"
+    blockchain_explorer_url: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -43,6 +47,13 @@ class DocumentVerificationResponse(BaseModel):
     approval_date: Optional[str] = None
     approval_reference_no: Optional[str] = None
     document_hash: Optional[str] = None
+    sha256_hash: Optional[str] = None
+    blockchain_tx_hash: Optional[str] = None
+    blockchain_status: Optional[str] = "unanchored"
+    blockchain_explorer_url: Optional[str] = None
+    blockchain_issuer: Optional[str] = None
+    blockchain_timestamp: Optional[int] = None
+    blockchain_verified: bool = False
     hash_match: bool = False
     signature_valid: bool = False
     institution: str = "Niyojan Educational Institution"

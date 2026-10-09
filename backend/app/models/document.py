@@ -36,6 +36,9 @@ class Document(Base):
     approval_reference_no: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, unique=True, index=True)
     
     document_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True) # SHA-256
+    sha256_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    blockchain_tx_hash: Mapped[Optional[str]] = mapped_column(String(66), nullable=True)
+    blockchain_status: Mapped[str] = mapped_column(String(20), default="unanchored", nullable=False) # unanchored, pending, confirmed, failed
     verification_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, unique=True, index=True)
     qr_code_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     

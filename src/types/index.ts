@@ -86,6 +86,10 @@ export interface DocumentApproval {
   principalNote?: string;
   digitalStampVerified: boolean;
   approvalReferenceNo?: string;
+  sha256_hash?: string;
+  blockchain_tx_hash?: string;
+  blockchain_status?: 'unanchored' | 'pending' | 'confirmed' | 'failed' | 'mock_confirmed';
+  blockchain_explorer_url?: string;
 }
 
 export interface AuditLog {

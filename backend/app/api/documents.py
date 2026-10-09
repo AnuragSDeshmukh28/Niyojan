@@ -1,6 +1,6 @@
 import os
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -27,13 +27,14 @@ def list_user_documents(
 
 @router.post("/upload", response_model=DocumentRead, status_code=status.HTTP_201_CREATED)
 def upload_new_document(
+    background_tasks: BackgroundTasks,
     docTitle: str = Form(...),
     docCategory: str = Form(...),
     file: UploadFile = File(...),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    return upload_document(db, current_user, docTitle, docCategory, file)
+    return upload_document(db, current_user, docTitle, docCategory, file, background_tasks=background_tasks)
 
 @router.get("/{document_id}", response_model=DocumentRead)
 def get_document_detail(

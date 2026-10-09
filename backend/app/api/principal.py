@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, require_role
@@ -28,10 +28,11 @@ def list_principal_appointments(
 def principal_approve_appointment(
     appointment_id: str,
     req: ApproveAppointmentRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_role(RoleName.PRINCIPAL)),
     db: Session = Depends(get_db)
 ):
-    return approve_by_principal(db, current_user, appointment_id, req.slotTime, req.remarks)
+    return approve_by_principal(db, current_user, appointment_id, req.slotTime, req.remarks, background_tasks=background_tasks)
 
 @router.post("/appointments/{appointment_id}/reject", response_model=AppointmentRead)
 def principal_reject_appointment(
@@ -63,10 +64,11 @@ def list_principal_documents(
 def principal_approve_document(
     document_id: str,
     req: DocumentReviewRequest,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(require_role(RoleName.PRINCIPAL)),
     db: Session = Depends(get_db)
 ):
-    return approve_document_by_principal(db, current_user, document_id, req.note)
+    return approve_document_by_principal(db, current_user, document_id, req.note, background_tasks=background_tasks)
 
 @router.post("/documents/{document_id}/revoke", response_model=DocumentRead)
 def principal_revoke_document(

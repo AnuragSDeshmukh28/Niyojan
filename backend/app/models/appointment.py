@@ -44,6 +44,10 @@ class Appointment(Base):
     attachment_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     attachment_size: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     
+    sha256_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    blockchain_tx_hash: Mapped[Optional[str]] = mapped_column(String(66), nullable=True)
+    blockchain_status: Mapped[str] = mapped_column(String(20), default="unanchored", nullable=False) # unanchored, pending, confirmed, failed
+    
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

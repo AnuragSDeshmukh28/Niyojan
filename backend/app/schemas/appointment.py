@@ -43,6 +43,10 @@ class AppointmentRead(BaseModel):
     scheduledSlot: Optional[str] = None
     attachmentName: Optional[str] = None
     attachmentSize: Optional[str] = None
+    sha256_hash: Optional[str] = None
+    blockchain_tx_hash: Optional[str] = None
+    blockchain_status: Optional[str] = "unanchored"
+    blockchain_explorer_url: Optional[str] = None
     createdAt: str
     updatedAt: str
     history: List[AppointmentHistoryStepRead] = []

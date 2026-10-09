@@ -1,5 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { ShieldCheck, AlertTriangle, XCircle, CheckCircle2, Building2, Layers, RefreshCw, FileText } from 'lucide-react';
+import {
+  ShieldCheck,
+  AlertTriangle,
+  XCircle,
+  CheckCircle2,
+  Building2,
+  Layers,
+  RefreshCw,
+  FileText,
+  Cpu,
+  ExternalLink,
+  Copy,
+  Check
+} from 'lucide-react';
 import { apiClient } from '../../services/api';
 
 interface VerificationResult {
@@ -12,6 +25,13 @@ interface VerificationResult {
   approval_date?: string;
   approval_reference_no?: string;
   document_hash?: string;
+  sha256_hash?: string;
+  blockchain_tx_hash?: string;
+  blockchain_status?: 'unanchored' | 'pending' | 'confirmed' | 'failed' | 'mock_confirmed';
+  blockchain_explorer_url?: string;
+  blockchain_issuer?: string;
+  blockchain_timestamp?: number;
+  blockchain_verified?: boolean;
   hash_match?: boolean;
   signature_valid?: boolean;
   institution?: string;
@@ -25,6 +45,13 @@ interface VerificationPageProps {
 export const VerificationPage: React.FC<VerificationPageProps> = ({ verificationId, onNavigateHome }) => {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   useEffect(() => {
     const fetchVerification = async () => {
@@ -67,7 +94,7 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
 
         <h1 className="text-2xl font-black text-white">Public Digital Document Verification Portal</h1>
         <p className="text-xs text-slate-400 mt-1">
-          Official Institutional Cryptographic Seal & SHA-256 Authenticity Validator
+          Official Institutional Cryptographic Seal & EVM Blockchain Authenticity Validator
         </p>
       </div>
 
@@ -80,6 +107,7 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
             </div>
           ) : result?.status === 'AUTHENTIC' ? (
             <div className="space-y-6">
+              {/* Authentic Banner */}
               <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-7 h-7" />
@@ -93,6 +121,7 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
                 </div>
               </div>
 
+              {/* Institutional Details */}
               <div className="p-4 bg-slate-900/60 rounded-xl border border-slate-700/80 space-y-3 text-xs">
                 <div className="flex justify-between border-b border-slate-800 pb-2">
                   <span className="text-slate-400">Verification ID:</span>
@@ -122,11 +151,112 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
                   <span className="text-slate-400">Approval Date:</span>
                   <span className="text-slate-300">{result.approval_date}</span>
                 </div>
-                <div className="pt-1">
-                  <span className="text-slate-400 block mb-1">SHA-256 Hash Digest:</span>
-                  <p className="font-mono text-[10px] bg-slate-950 p-2 rounded border border-slate-800 text-teal-300 break-all">
-                    {result.document_hash}
-                  </p>
+              </div>
+
+              {/* Blockchain Audit Certificate Card */}
+              <div className="p-5 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950 border border-teal-500/30 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold">
+                      <Cpu className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-200">Blockchain Audit Certificate</h3>
+                      <p className="text-[10px] text-slate-400">Immutable EVM Ledger Anchor (Polygon Amoy / Base Sepolia)</p>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Status Badge */}
+                  {result.blockchain_status === 'confirmed' || (result.blockchain_tx_hash && result.blockchain_status !== 'pending' && result.blockchain_status !== 'failed') ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Cryptographically Verified on Blockchain
+                    </span>
+                  ) : result.blockchain_status === 'pending' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-amber-500/15 border border-amber-500/40 text-amber-400 animate-pulse">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Anchoring to Ledger...
+                    </span>
+                  ) : result.blockchain_status === 'failed' ? (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-rose-500/15 border border-rose-500/40 text-rose-400">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      Blockchain Sync Pending
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-slate-700/50 border border-slate-600 text-slate-300">
+                      <Layers className="w-3.5 h-3.5" />
+                      Off-Chain Registry
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  {/* SHA-256 Hash Digest */}
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-slate-400 text-[11px] font-medium">Document Hash (SHA-256):</span>
+                      <button
+                        onClick={() => copyToClipboard(result.sha256_hash || result.document_hash || '', 'hash')}
+                        className="text-[10px] text-teal-400 hover:text-teal-300 flex items-center gap-1 transition-colors"
+                      >
+                        {copiedField === 'hash' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        {copiedField === 'hash' ? 'Copied' : 'Copy Hash'}
+                      </button>
+                    </div>
+                    <p className="font-mono text-[10px] bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-teal-300 break-all select-all">
+                      {result.sha256_hash || result.document_hash || 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Blockchain Transaction Hash */}
+                  {result.blockchain_tx_hash && (
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-slate-400 text-[11px] font-medium">Transaction Hash:</span>
+                        <button
+                          onClick={() => copyToClipboard(result.blockchain_tx_hash || '', 'tx')}
+                          className="text-[10px] text-teal-400 hover:text-teal-300 flex items-center gap-1 transition-colors"
+                        >
+                          {copiedField === 'tx' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          {copiedField === 'tx' ? 'Copied' : 'Copy Tx'}
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between p-2.5 rounded-lg bg-slate-950 border border-slate-800">
+                        <span className="font-mono text-[10px] text-slate-300 truncate max-w-[280px] sm:max-w-md">
+                          {result.blockchain_tx_hash}
+                        </span>
+                        {result.blockchain_explorer_url && !result.blockchain_tx_hash.startsWith('mock_') && (
+                          <a
+                            href={result.blockchain_explorer_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-teal-400 hover:text-teal-300 font-semibold shrink-0 ml-2"
+                          >
+                            <span>View on Explorer</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Issuer & Timestamp Details */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-800/80">
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Relayer Issuer:</span>
+                      <span className="font-mono text-[11px] text-slate-300 truncate block">
+                        {result.blockchain_issuer || '0xRelayer (Authorized Institutional Desk)'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Ledger Timestamp:</span>
+                      <span className="text-[11px] text-slate-300 block">
+                        {result.blockchain_timestamp
+                          ? new Date(result.blockchain_timestamp * 1000).toUTCString()
+                          : result.approval_date || 'Current Block'}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -98,6 +98,22 @@ export const DocumentPreviewModal: React.FC<DocumentPreviewModalProps> = ({
                 <span>Digitally Signed & Validated by Niyojan Portal</span>
               </div>
             )}
+
+            {document.blockchain_tx_hash && (
+              <div className="mt-2 text-center text-[10px] text-teal-300 font-mono bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                <span>EVM Ledger Tx: {document.blockchain_tx_hash.slice(0, 12)}...{document.blockchain_tx_hash.slice(-8)}</span>
+                {document.blockchain_explorer_url && !document.blockchain_tx_hash.startsWith('mock_') && (
+                  <a
+                    href={document.blockchain_explorer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 text-teal-400 hover:text-teal-200 underline"
+                  >
+                    View Explorer
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Verification Notes */}

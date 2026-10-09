@@ -1,15 +1,18 @@
 import random
+import hashlib
 from datetime import datetime, timezone
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, BackgroundTasks
 
 from app.models.appointment import Appointment, AppointmentHistory, AppointmentSlot, AppointmentStatusEnum, PriorityLevelEnum
 from app.models.user import User
 from app.schemas.appointment import AppointmentCreate
 from app.services.notification_service import create_notification
 from app.services.audit_service import log_audit_event
+from app.services.blockchain_service import blockchain_service
+from app.core.config import settings
 
 def format_appointment_response(apt: Appointment) -> dict:
     req_user = apt.requested_by
@@ -49,6 +52,10 @@ def format_appointment_response(apt: Appointment) -> dict:
         "scheduledSlot": apt.scheduled_slot,
         "attachmentName": apt.attachment_name,
         "attachmentSize": apt.attachment_size,
+        "sha256_hash": apt.sha256_hash,
+        "blockchain_tx_hash": apt.blockchain_tx_hash,
+        "blockchain_status": apt.blockchain_status or "unanchored",
+        "blockchain_explorer_url": blockchain_service.get_explorer_url(apt.blockchain_tx_hash),
         "createdAt": apt.created_at.strftime("%m/%d/%Y, %I:%M:%S %p"),
         "updatedAt": apt.updated_at.strftime("%m/%d/%Y, %I:%M:%S %p"),
         "history": history_list
@@ -154,7 +161,14 @@ def forward_by_mediator(db: Session, mediator_user: User, appointment_id: str, r
 
     return format_appointment_response(apt)
 
-def approve_by_principal(db: Session, principal_user: User, appointment_id: str, slot_time: str, remarks: str) -> dict:
+def approve_by_principal(
+    db: Session,
+    principal_user: User,
+    appointment_id: str,
+    slot_time: str,
+    remarks: str,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
     # Transactional check & lock to prevent double-booking
     with db.begin_nested():
         apt = db.query(Appointment).filter(Appointment.id == appointment_id).with_for_update().first()
@@ -188,6 +202,14 @@ def approve_by_principal(db: Session, principal_user: User, appointment_id: str,
         apt.status = AppointmentStatusEnum.APPROVED
         apt.scheduled_slot = slot_time
         apt.principal_remarks = remarks
+
+        # Compute tamper-proof hash digest for appointment
+        digest_data = f"{apt.id}|{apt.requested_by_id}|{apt.subject}|{slot_time}|{apt.preferred_date}|{principal_user.id}"
+        apt_hash = hashlib.sha256(digest_data.encode()).hexdigest()
+        apt.sha256_hash = apt_hash
+        if settings.BLOCKCHAIN_ENABLED:
+            apt.blockchain_status = "pending"
+
         apt.updated_at = datetime.now(timezone.utc)
 
         history = AppointmentHistory(
@@ -201,6 +223,9 @@ def approve_by_principal(db: Session, principal_user: User, appointment_id: str,
 
     db.commit()
     db.refresh(apt)
+
+    if background_tasks and settings.BLOCKCHAIN_ENABLED:
+        background_tasks.add_task(blockchain_service.anchor_document_on_chain, apt.id, apt_hash, "appointment")
 
     create_notification(
         db=db,

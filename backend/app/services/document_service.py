@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy.orm import Session
-from fastapi import HTTPException, status, UploadFile
+from fastapi import HTTPException, status, UploadFile, BackgroundTasks
 
 from app.models.document import Document, DocumentApprovalRecord, DocumentStatusEnum
 from app.models.user import User
@@ -13,6 +13,7 @@ from app.utils.qr_generator import generate_verification_qr_code
 from app.utils.pdf_generator import generate_signed_approval_pdf
 from app.services.notification_service import create_notification
 from app.services.audit_service import log_audit_event
+from app.services.blockchain_service import blockchain_service
 from app.core.config import settings
 
 def format_document_response(doc: Document) -> dict:
@@ -24,6 +25,8 @@ def format_document_response(doc: Document) -> dict:
         "identifier": sub_user.identifier if sub_user else "",
         "avatar": sub_user.avatar if sub_user else "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150"
     }
+
+    doc_hash = doc.sha256_hash or doc.document_hash
 
     return {
         "id": doc.id,
@@ -37,16 +40,30 @@ def format_document_response(doc: Document) -> dict:
         "mediatorNote": doc.mediator_note,
         "principalNote": doc.principal_note,
         "digitalStampVerified": doc.digital_stamp_verified,
-        "approvalReferenceNo": doc.approval_reference_no
+        "approvalReferenceNo": doc.approval_reference_no,
+        "sha256_hash": doc_hash,
+        "blockchain_tx_hash": doc.blockchain_tx_hash,
+        "blockchain_status": doc.blockchain_status or "unanchored",
+        "blockchain_explorer_url": blockchain_service.get_explorer_url(doc.blockchain_tx_hash)
     }
 
-def upload_document(db: Session, user: User, doc_title: str, doc_category: str, file: UploadFile) -> dict:
+def upload_document(
+    db: Session,
+    user: User,
+    doc_title: str,
+    doc_category: str,
+    file: UploadFile,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
     file_path, filename, size_str, content_type = validate_and_save_upload(file)
+    file_hash = compute_file_sha256(file_path)
     
     year = datetime.now().year
     rand_num = random.randint(1000, 9999)
     doc_id = f"DOC-{year}-{rand_num}"
     submitted_date_str = datetime.now().strftime("%Y-%m-%d")
+
+    initial_bc_status = "pending" if settings.BLOCKCHAIN_ENABLED else "unanchored"
 
     new_doc = Document(
         id=doc_id,
@@ -58,11 +75,18 @@ def upload_document(db: Session, user: User, doc_title: str, doc_category: str, 
         file_size=size_str,
         file_type=content_type,
         status=DocumentStatusEnum.PENDING_VERIFICATION,
-        digital_stamp_verified=False
+        digital_stamp_verified=False,
+        document_hash=file_hash,
+        sha256_hash=file_hash,
+        blockchain_status=initial_bc_status
     )
     db.add(new_doc)
     db.commit()
     db.refresh(new_doc)
+
+    # Trigger blockchain anchoring asynchronously
+    if background_tasks and settings.BLOCKCHAIN_ENABLED:
+        background_tasks.add_task(blockchain_service.anchor_document_on_chain, doc_id, file_hash, "document")
 
     create_notification(
         db=db,
@@ -109,7 +133,13 @@ def verify_document_by_mediator(db: Session, mediator_user: User, document_id: s
 
     return format_document_response(doc)
 
-def approve_document_by_principal(db: Session, principal_user: User, document_id: str, note: str) -> dict:
+def approve_document_by_principal(
+    db: Session,
+    principal_user: User,
+    document_id: str,
+    note: str,
+    background_tasks: Optional[BackgroundTasks] = None
+) -> dict:
     doc = db.query(Document).filter(Document.id == document_id).first()
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -145,6 +175,9 @@ def approve_document_by_principal(db: Session, principal_user: User, document_id
     doc.digital_stamp_verified = True
     doc.approval_reference_no = ref_no
     doc.document_hash = doc_hash
+    doc.sha256_hash = doc_hash
+    if settings.BLOCKCHAIN_ENABLED:
+        doc.blockchain_status = "pending"
     doc.verification_id = verification_id
     doc.approved_file_path = approved_file_path
     doc.qr_code_path = qr_code_path
@@ -166,6 +199,9 @@ def approve_document_by_principal(db: Session, principal_user: User, document_id
 
     db.commit()
     db.refresh(doc)
+
+    if background_tasks and settings.BLOCKCHAIN_ENABLED:
+        background_tasks.add_task(blockchain_service.anchor_document_on_chain, doc.id, doc_hash, "document")
 
     create_notification(
         db=db,
@@ -231,8 +267,19 @@ def public_verify_document(db: Session, verification_id: str) -> dict:
             "verification_id": verification_id,
             "hash_match": False,
             "signature_valid": False,
-            "institution": settings.INSTITUTION_NAME
+            "institution": settings.INSTITUTION_NAME,
+            "blockchain_status": "unanchored",
+            "blockchain_verified": False
         }
+
+    sha256_hash = doc.sha256_hash or doc.document_hash
+    explorer_url = blockchain_service.get_explorer_url(doc.blockchain_tx_hash)
+
+    # Cross-verify against on-chain smart contract registry
+    on_chain = blockchain_service.verify_document_on_chain(doc.id)
+    blockchain_verified = False
+    if on_chain.get("exists") and on_chain.get("file_hash") and sha256_hash:
+        blockchain_verified = (on_chain.get("file_hash").lower() == sha256_hash.lower())
 
     if doc.status == DocumentStatusEnum.REVOKED or (doc.approval_record and doc.approval_record.is_revoked):
         return {
@@ -245,6 +292,13 @@ def public_verify_document(db: Session, verification_id: str) -> dict:
             "approval_date": doc.approval_record.approved_at.strftime("%B %d, %Y") if doc.approval_record else doc.submitted_date,
             "approval_reference_no": doc.approval_reference_no,
             "document_hash": doc.document_hash,
+            "sha256_hash": sha256_hash,
+            "blockchain_tx_hash": doc.blockchain_tx_hash,
+            "blockchain_status": doc.blockchain_status or "unanchored",
+            "blockchain_explorer_url": explorer_url,
+            "blockchain_issuer": on_chain.get("issuer"),
+            "blockchain_timestamp": on_chain.get("timestamp"),
+            "blockchain_verified": False,
             "hash_match": False,
             "signature_valid": False,
             "institution": settings.INSTITUTION_NAME
@@ -267,6 +321,13 @@ def public_verify_document(db: Session, verification_id: str) -> dict:
         "approval_date": doc.approval_record.approved_at.strftime("%B %d, %Y") if doc.approval_record else doc.submitted_date,
         "approval_reference_no": doc.approval_reference_no,
         "document_hash": doc.document_hash,
+        "sha256_hash": sha256_hash,
+        "blockchain_tx_hash": doc.blockchain_tx_hash,
+        "blockchain_status": doc.blockchain_status or "unanchored",
+        "blockchain_explorer_url": explorer_url,
+        "blockchain_issuer": on_chain.get("issuer"),
+        "blockchain_timestamp": on_chain.get("timestamp"),
+        "blockchain_verified": blockchain_verified,
         "hash_match": hash_matches,
         "signature_valid": doc.digital_stamp_verified and hash_matches,
         "institution": settings.INSTITUTION_NAME

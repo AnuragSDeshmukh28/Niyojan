@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     SIGNING_CERT_PATH: str = ""
     SIGNING_KEY_PATH: str = ""
     SIGNING_KEY_PASSWORD: str = ""
+
+    # EVM Blockchain Anchor Settings
+    BLOCKCHAIN_RPC_URL: str = "https://rpc-amoy.polygon.technology"
+    BLOCKCHAIN_PRIVATE_KEY: str = ""
+    BLOCKCHAIN_CONTRACT_ADDRESS: str = ""
+    BLOCKCHAIN_EXPLORER_URL: str = "https://amoy.polygonscan.com/tx/"
+    BLOCKCHAIN_ENABLED: bool = True
     
     # Seed Accounts
     INITIAL_ADMIN_EMAIL: str = "admin@institution.edu.in"
