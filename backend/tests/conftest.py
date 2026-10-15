@@ -13,12 +13,22 @@ from app.core.config import settings
 from app.database.session import Base
 from app.core.dependencies import get_db
 import app.database.session as session_module
+from app.core import rate_limiter as rate_limiter_module
 
 TEST_DB_PATH = Path(__file__).parent / "test_suite.sqlite3"
 TEST_DB_URL = f"sqlite:///{TEST_DB_PATH.as_posix()}"
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    rate_limiter_module._limiter._requests.clear()
+    yield
+    rate_limiter_module._limiter._requests.clear()
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
+    # Reset sliding-window rate limiter so tests don't interfere with each other
+    rate_limiter_module._limiter._requests.clear()
+
     if TEST_DB_PATH.exists():
         try:
             TEST_DB_PATH.unlink()

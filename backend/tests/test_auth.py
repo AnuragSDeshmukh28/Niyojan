@@ -6,9 +6,10 @@ def test_health_check(client):
     assert data["database"] == "connected"
 
 def test_login_success(client):
+    from app.core.config import settings
     response = client.post("/api/auth/login", json={
-        "email": "student@institution.edu.in",
-        "password": "Student@Niyojan2026"
+        "email": settings.INITIAL_STUDENT_EMAIL,
+        "password": settings.INITIAL_STUDENT_PASSWORD
     })
     assert response.status_code == 200
     data = response.json()

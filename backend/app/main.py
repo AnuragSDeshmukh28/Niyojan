@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.api import health, auth, users, appointments, documents, mediator, principal, admin, notifications, dashboard, reports, verification
+from app.api import health, auth, users, appointments, documents, mediator, principal, admin, notifications, dashboard, reports, verification, mail
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -74,6 +74,7 @@ app.include_router(notifications.router, prefix=api_router_prefix)
 app.include_router(dashboard.router, prefix=api_router_prefix)
 app.include_router(reports.router, prefix=api_router_prefix)
 app.include_router(verification.router, prefix=api_router_prefix)
+app.include_router(mail.router, prefix=api_router_prefix)
 
 @app.get("/")
 def root():

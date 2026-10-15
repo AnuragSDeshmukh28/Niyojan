@@ -57,3 +57,8 @@ class DocumentVerificationResponse(BaseModel):
     hash_match: bool = False
     signature_valid: bool = False
     institution: str = "Niyojan Educational Institution"
+    # ECDSA Digital Signature (secp256k1 / EIP-191)
+    ecdsa_signature: Optional[str] = None
+    signer_address: Optional[str] = None
+    ecdsa_verified: Optional[bool] = None
+    network: Optional[str] = None

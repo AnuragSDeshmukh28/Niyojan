@@ -1,10 +1,11 @@
 import io
+from app.core.config import settings
 
 def test_document_full_workflow(client):
     # 1. Login as Student
     res = client.post("/api/auth/login", json={
-        "email": "student@institution.edu.in",
-        "password": "Student@Niyojan2026"
+        "email": settings.INITIAL_STUDENT_EMAIL,
+        "password": settings.INITIAL_STUDENT_PASSWORD
     })
     assert res.status_code == 200
     token = res.json()["access_token"]
@@ -25,9 +26,10 @@ def test_document_full_workflow(client):
 
     # 3. Mediator Verify
     med_res = client.post("/api/auth/login", json={
-        "email": "mediator@institution.edu.in",
-        "password": "Mediator@Niyojan2026"
+        "email": settings.INITIAL_MEDIATOR_EMAIL,
+        "password": settings.INITIAL_MEDIATOR_PASSWORD
     })
+    assert med_res.status_code == 200
     med_token = med_res.json()["access_token"]
     med_headers = {"Authorization": f"Bearer {med_token}"}
 
@@ -39,9 +41,10 @@ def test_document_full_workflow(client):
 
     # 4. Principal Approve & Digitally Stamp
     prin_res = client.post("/api/auth/login", json={
-        "email": "principal@institution.edu.in",
-        "password": "Principal@Niyojan2026"
+        "email": settings.INITIAL_PRINCIPAL_EMAIL,
+        "password": settings.INITIAL_PRINCIPAL_PASSWORD
     })
+    assert prin_res.status_code == 200
     prin_token = prin_res.json()["access_token"]
     prin_headers = {"Authorization": f"Bearer {prin_token}"}
 
@@ -59,10 +62,6 @@ def test_document_full_workflow(client):
     assert det_res.status_code == 200
 
     # 5. Public Verification Check
-    # Fetch document from DB directly via API or public verification
-    # We can check verification API
-    # Find verification_id via admin/principal or public
-    # Let's call public verify with invalid ID first
     pub_res = client.get("/api/public/verify/NON_EXISTENT_ID")
     assert pub_res.status_code == 200
     assert pub_res.json()["status"] == "NOT_FOUND"

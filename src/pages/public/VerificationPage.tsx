@@ -35,6 +35,11 @@ interface VerificationResult {
   hash_match?: boolean;
   signature_valid?: boolean;
   institution?: string;
+  // ECDSA Digital Signature fields
+  ecdsa_signature?: string;
+  signer_address?: string;
+  ecdsa_verified?: boolean;
+  network?: string;
 }
 
 interface VerificationPageProps {
@@ -245,7 +250,7 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
                     <div>
                       <span className="text-slate-400 text-[10px] block">Relayer Issuer:</span>
                       <span className="font-mono text-[11px] text-slate-300 truncate block">
-                        {result.blockchain_issuer || '0xRelayer (Authorized Institutional Desk)'}
+                        {result.blockchain_issuer || result.signer_address || '0xRelayer (Authorized Institutional Desk)'}
                       </span>
                     </div>
                     <div>
@@ -257,6 +262,62 @@ export const VerificationPage: React.FC<VerificationPageProps> = ({ verification
                       </span>
                     </div>
                   </div>
+
+                  {/* ECDSA Digital Signature Section */}
+                  {result.ecdsa_signature && (
+                    <div className="pt-3 border-t border-slate-800/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-violet-400">
+                          ECDSA Digital Signature (secp256k1 / EIP-191)
+                        </span>
+                        {result.ecdsa_verified !== false ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/15 border border-violet-500/40 text-violet-300">
+                            <CheckCircle2 className="w-3 h-3" /> Signature Valid
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/15 border border-rose-500/40 text-rose-300">
+                            <AlertTriangle className="w-3 h-3" /> Invalid
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-400 text-[10px]">Approver Wallet (Recovered via ecrecover):</span>
+                          <button
+                            onClick={() => copyToClipboard(result.signer_address || '', 'signer')}
+                            className="text-[10px] text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
+                          >
+                            {copiedField === 'signer' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copiedField === 'signer' ? 'Copied' : 'Copy'}
+                          </button>
+                        </div>
+                        <p className="font-mono text-[10px] bg-slate-950 p-2 rounded-lg border border-violet-900/50 text-violet-300 break-all select-all">
+                          {result.signer_address || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-400 text-[10px]">ECDSA Signature (65 bytes):</span>
+                          <button
+                            onClick={() => copyToClipboard(result.ecdsa_signature || '', 'ecdsa')}
+                            className="text-[10px] text-violet-400 hover:text-violet-300 flex items-center gap-1 transition-colors"
+                          >
+                            {copiedField === 'ecdsa' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                            {copiedField === 'ecdsa' ? 'Copied' : 'Copy Sig'}
+                          </button>
+                        </div>
+                        <p className="font-mono text-[10px] bg-slate-950 p-2 rounded-lg border border-violet-900/50 text-slate-400 break-all select-all leading-relaxed">
+                          {result.ecdsa_signature}
+                        </p>
+                      </div>
+                      {result.network && (
+                        <div className="flex justify-between text-[10px] pt-1">
+                          <span className="text-slate-500">Network / Mode:</span>
+                          <span className="text-slate-300 font-mono">{result.network}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

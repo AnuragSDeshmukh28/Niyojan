@@ -1,4 +1,5 @@
 import random
+from app.core.config import settings
 
 def test_appointment_workflow(client):
     rand_day = random.randint(10, 28)
@@ -6,8 +7,8 @@ def test_appointment_workflow(client):
 
     # 1. Login as Student
     res = client.post("/api/auth/login", json={
-        "email": "student@institution.edu.in",
-        "password": "Student@Niyojan2026"
+        "email": settings.INITIAL_STUDENT_EMAIL,
+        "password": settings.INITIAL_STUDENT_PASSWORD
     })
     assert res.status_code == 200
     token = res.json()["access_token"]
@@ -30,8 +31,8 @@ def test_appointment_workflow(client):
 
     # 3. Login as Mediator & Forward
     med_res = client.post("/api/auth/login", json={
-        "email": "mediator@institution.edu.in",
-        "password": "Mediator@Niyojan2026"
+        "email": settings.INITIAL_MEDIATOR_EMAIL,
+        "password": settings.INITIAL_MEDIATOR_PASSWORD
     })
     assert med_res.status_code == 200
     med_token = med_res.json()["access_token"]
@@ -45,8 +46,8 @@ def test_appointment_workflow(client):
 
     # 4. Login as Principal & Approve
     prin_res = client.post("/api/auth/login", json={
-        "email": "principal@institution.edu.in",
-        "password": "Principal@Niyojan2026"
+        "email": settings.INITIAL_PRINCIPAL_EMAIL,
+        "password": settings.INITIAL_PRINCIPAL_PASSWORD
     })
     assert prin_res.status_code == 200
     prin_token = prin_res.json()["access_token"]

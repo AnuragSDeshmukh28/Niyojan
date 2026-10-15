@@ -2,13 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
+from app.core.rate_limiter import rate_limit
 from app.schemas.auth import Token, LoginRequest, RegisterRequest, RefreshTokenRequest, ForgotPasswordRequest, ResetPasswordRequest
 from app.models.user import User
 from app.services.auth_service import login_user_and_create_tokens, register_new_user, refresh_access_token, logout_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, dependencies=[Depends(rate_limit(5, 60, "auth_login"))])
 def login(login_data: LoginRequest, db: Session = Depends(get_db)):
     return login_user_and_create_tokens(db, login_data)
 

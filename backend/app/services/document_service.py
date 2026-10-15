@@ -311,6 +311,21 @@ def public_verify_document(db: Session, verification_id: str) -> dict:
 
     status_str = "AUTHENTIC" if hash_matches else "INVALID"
 
+    # ECDSA verification (pure crypto — no network call)
+    doc_ecdsa_sig = getattr(doc, "ecdsa_signature", None)
+    doc_signer_addr = getattr(doc, "signer_address", None)
+    ecdsa_verified = None
+    if doc_ecdsa_sig and sha256_hash:
+        ecdsa_result = blockchain_service.verify_ecdsa_signature(sha256_hash, doc_ecdsa_sig, doc_signer_addr)
+        ecdsa_verified = ecdsa_result.get("valid", False)
+        if ecdsa_verified and ecdsa_result.get("recovered_address"):
+            doc_signer_addr = ecdsa_result["recovered_address"]
+
+    # Determine network label
+    local_ledger = blockchain_service.get_local_ledger()
+    local_record = local_ledger._by_doc_id.get(doc.id)
+    network_label = (local_record.get("network") if local_record else None) or "Niyojan ECDSA Ledger"
+
     return {
         "status": status_str,
         "verification_id": verification_id,
@@ -325,10 +340,14 @@ def public_verify_document(db: Session, verification_id: str) -> dict:
         "blockchain_tx_hash": doc.blockchain_tx_hash,
         "blockchain_status": doc.blockchain_status or "unanchored",
         "blockchain_explorer_url": explorer_url,
-        "blockchain_issuer": on_chain.get("issuer"),
+        "blockchain_issuer": on_chain.get("issuer") or on_chain.get("signer"),
         "blockchain_timestamp": on_chain.get("timestamp"),
         "blockchain_verified": blockchain_verified,
         "hash_match": hash_matches,
         "signature_valid": doc.digital_stamp_verified and hash_matches,
-        "institution": settings.INSTITUTION_NAME
+        "institution": settings.INSTITUTION_NAME,
+        "ecdsa_signature": doc_ecdsa_sig,
+        "signer_address": doc_signer_addr,
+        "ecdsa_verified": ecdsa_verified,
+        "network": network_label,
     }

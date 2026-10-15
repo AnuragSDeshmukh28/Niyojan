@@ -36,6 +36,16 @@ class Settings(BaseSettings):
     BLOCKCHAIN_CONTRACT_ADDRESS: str = ""
     BLOCKCHAIN_EXPLORER_URL: str = "https://amoy.polygonscan.com/tx/"
     BLOCKCHAIN_ENABLED: bool = True
+
+    # AI Mail Agent (Gemini)
+    GEMINI_API_KEY: str = ""
+
+    # SMTP (optional — for live email dispatch)
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    SMTP_FROM: str = "no-reply@niyojan.gov.in"
     
     # Seed Accounts
     INITIAL_ADMIN_EMAIL: str = "admin@institution.edu.in"
